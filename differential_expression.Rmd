@@ -1,0 +1,265 @@
+---
+title: "Differential Expression"
+author: "`r getOption('author')`"
+date: "`r Sys.Date()`"
+bibliography: bibliography.bib
+params:
+    bcb_file: "data/2018-04-25/bcb.rda"
+    alpha: 0.01
+    lfc: 0
+    data_dir: !r file.path("data", Sys.Date())
+    results_dir: !r tempdir()
+    dropbox_dir: "mair-atf6-rnaseq-celegans/results/differential_expression"
+---
+
+```{r setup, message=FALSE}
+# Last modified 2018-04-25
+bcbioRNASeq::prepareRNASeqTemplate()
+source("_setup.R")
+library(DEGreport)
+
+# Directory paths ==============================================================
+invisible(mapply(
+    FUN = dir.create,
+    path = c(params$data_dir, params$results_dir),
+    MoreArgs = list(showWarnings = FALSE, recursive = TRUE)
+))
+
+# Load object ==================================================================
+bcb_name <- load(params$bcb_file)
+bcb <- get(bcb_name, inherits = FALSE)
+stopifnot(is(bcb, "bcbioRNASeq"))
+invisible(validObject(bcb))
+```
+
+```{r header, child="_header.Rmd"}
+```
+
+
+
+```{r dds, results="hide"}
+dds <- as(bcb, "DESeqDataSet")
+design(dds) <- ~ genotype
+```
+
+We need to set the reference level of "genotype" to the wild-type strain.
+
+```{r relevel}
+dds$genotype <- relevel(dds$genotype, ref = "wt")
+```
+
+Now we're ready to perform the analysis with DESeq2.
+
+```{r deseq}
+dds <- DESeq(dds)
+rld <- rlog(dds)
+saveData(dds, rld, dir = params$data_dir)
+```
+
+Double check that the contrasts are relative to wild-type.
+
+```{r}
+resultsNames(dds)
+```
+
+
+
+# Results
+
+For contrast argument as character vector:
+
+1. Design matrix factor of interest.
+2. Numerator for LFC (expt).
+3. Denominator for LFC (control).
+
+Here are the contrasts we're comparing initially:
+
+- atf-6 vs. N2
+- atf-6;itr-1(sa73) vs. N2.
+- itr-1(sa73) vs. N2
+- itr-1(sy290) vs. N2
+
+- atf-6;itr-1(sa73) vs. atf-6
+- atf-6;itr-1(sa73) vs. itr-1(sa73)
+
+First priority: how the itr-1(sa73) mutant suppresses atf-6 phenotypes. 
+
+```{r contrasts}
+# factor; numerator; denominator
+# levels(dds$genotype)
+# help("results", "DESeq2")
+factor <- "genotype"
+contrasts <- list(
+    c(factor, "atf6", "wt"),
+    c(factor, "atf6_itr1sa73", "wt"),
+    c(factor, "itr1sa73", "wt"),
+    c(factor, "itr1sy290", "wt"),
+    c(factor, "atf6_itr1sa73", "atf6"),
+    c(factor, "atf6_itr1sa73", "itr1sa73")
+)
+names <- vapply(
+    X = contrasts,
+    FUN = function(x) {
+        paste(x[[1]], x[[2]], "vs", x[[3]], sep = "_")
+        
+    },
+    FUN.VALUE = "character"
+)
+names(contrasts) <- names
+print(contrasts)
+```
+
+```{r res_unshrunken}
+res_list_unshrunken <- mapply(
+    FUN = results,
+    contrast = contrasts,
+    MoreArgs = list(object = dds, alpha = params$alpha),
+    SIMPLIFY = FALSE,
+    USE.NAMES = FALSE
+)
+names(res_list_unshrunken) <- names
+saveData(res_list_unshrunken, dir = params$data_dir)
+```
+
+Now let's calculate shrunken log2 fold change values with `DESeq2::lfcShrink()`. We're using the "normal" shrinkage estimator (default in DESeq2); the "apeglm" shrinkage estimator is also promising but doens't work well with complex contrast designs.
+
+```{r res_shrunken}
+# For `type` arguments other than "normal", `coef` argument is required.
+# Otherwise can use `contrast`, which is more intuitive and readable.
+# If using `coef` number, must match order in `resultsNames(dds)`.
+# help("lfcShrink", "DESeq2")
+# help("coef", "DESeq2")
+# help("resultsNames", "DESeq2")
+# This step can be a little slow and sped up with the `parallel` argument.
+# Parallelization works best on the O2 cluster, rather than attempting locally.
+res_list_shrunken <- mapply(
+    FUN = lfcShrink,
+    res = res_list_unshrunken,
+    contrast = contrasts,
+    MoreArgs = list(dds = dds, type = "normal"),
+    SIMPLIFY = FALSE,
+    USE.NAMES = TRUE
+)
+saveData(res_list_shrunken, dir = params$data_dir)
+```
+
+Let's save a copy of the prior information used during the shrinkage procedure.
+
+```{r prior_info}
+lapply(res_list_shrunken, priorInfo)
+```
+
+We performed the analysis using a BH adjusted *P* value cutoff of `r params$alpha` and a log fold-change (LFC) ratio cutoff of `r params$lfc`.
+
+
+
+# Plots
+
+## Mean average (MA)
+
+An MA plot compares transformed counts on `M` (log ratio) and `A` (mean average) scales [@Yang:2002ty].
+
+```{r plot_ma}
+mapply(
+    FUN = plotMeanAverage,
+    object = res_list_shrunken,
+    MoreArgs = list(lfcThreshold = params$lfc, alpha = 0.01),
+    SIMPLIFY = FALSE
+)
+```
+
+```{r plot_ma_deseq2}
+invisible(lapply(
+    X = res_list_shrunken,
+    FUN = function(res) {
+        DESeq2::plotMA(res, main = contrastName(res))
+    }
+))
+```
+
+
+## Volcano
+
+A volcano plot compares significance (BH-adjusted *P* value) against fold change (log2) [@Cui:2003kh; @Li:2014fv]. Genes in the green box with text labels have an adjusted *P* value are likely to be the top candidate genes of interest.
+
+```{r plot_volcano}
+mapply(
+    FUN = plotVolcano,
+    object = res_list_shrunken,
+    MoreArgs = list(lfcThreshold = params$lfc),
+    SIMPLIFY = FALSE
+)
+```
+
+
+## Heatmap
+
+This plot shows only differentially expressed genes on a per-sample basis. We have scaled the data by row and used the `ward.D2` method for clustering [@WardJr:1963eu].
+
+```{r plot_deg_heatmap}
+# help("pheatmap", "pheatmap")
+invisible(mapply(
+    FUN = plotDEGHeatmap,
+    results = res_list_shrunken,
+    MoreArgs = list(
+        counts = rld,
+        clusteringMethod = "ward.D2",
+        scale = "row"
+    ),
+    SIMPLIFY = FALSE
+))
+```
+
+
+
+# Results tables
+
+Subset the results into separate tables, containing all genes, differentially expressed genes in both directions, and directional tables.
+
+```{r results_tables, results="asis"}
+# Here we're creating subset tables of the DEGs, and adding the normalized
+# counts used by DESeq2 for the differential expression analysis.
+res_tbl_list <- mapply(
+    FUN = resultsTables,
+    results = res_list_shrunken,
+    MoreArgs = list(
+        counts = dds,
+        lfcThreshold = params$lfc,
+        summary = TRUE,
+        headerLevel = 2,
+        write = TRUE,
+        dir = params$results_dir,
+        dropboxDir = params$dropbox_dir
+    ),
+    SIMPLIFY = FALSE,
+    USE.NAMES = TRUE
+)
+saveData(res_tbl_list, dir = params$data_dir)
+```
+
+Differentially expressed gene (DEG) tables are sorted by BH-adjusted P value, and contain the following columns:
+
+- `baseMean`: Mean of the normalized counts per gene for all samples.
+- `log2FoldChange`: log2 fold change.
+- `lfcSE`: log2 standard error.
+- `stat`: Wald statistic.
+- `pvalue`: Walt test *P* value.
+- `padj`: BH adjusted Wald test *P* value (corrected for multiple comparisons; aka FDR).
+
+
+## Top tables
+
+Only the top up- and down-regulated genes (arranged by log2 fold change) are shown.
+
+```{r top_tables, results="asis"}
+invisible(mapply(
+    FUN = topTables,
+    object = res_tbl_list,
+    MoreArgs = list(n = 20L, coding = FALSE)
+))
+```
+
+
+
+```{r footer, child="_footer.Rmd"}
+```
