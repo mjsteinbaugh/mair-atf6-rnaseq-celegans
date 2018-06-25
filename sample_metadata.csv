@@ -1,0 +1,21 @@
+fileName,description,sampleName,strain,genotype,replicate,ageDays
+20180117_A1_KB5095_S1_R1_001.fastq.gz,S1,wt_rep1,N2 (wild-type),wt,1,1
+20180117_A2_KB5095_S2_R1_001.fastq.gz,S2,wt_rep2,N2 (wild-type),wt,2,1
+20180117_A3_KB5095_S3_R1_001.fastq.gz,S3,wt_rep3,N2 (wild-type),wt,3,1
+20180117_A4_KB5095_S4_R1_001.fastq.gz,S4,wt_rep4,N2 (wild-type),wt,4,1
+20180117_B1_KB5095_S5_R1_001.fastq.gz,S5,atf6_rep1,atf-6,atf6,1,1
+20180117_B2_KB5095_S6_R1_001.fastq.gz,S6,atf6_rep2,atf-6,atf6,2,1
+20180117_B3_KB5095_S7_R1_001.fastq.gz,S7,atf6_rep3,atf-6,atf6,3,1
+20180117_B4_KB5095_S8_R1_001.fastq.gz,S8,atf6_rep4,atf-6,atf6,4,1
+20180117_C1_KB5095_S9_R1_001.fastq.gz,S9,itr1sa73_rep1,itr-1(sa73),itr1sa73,1,1
+20180117_C2_KB5095_S10_R1_001.fastq.gz,S10,itr1sa73_rep2,itr-1(sa73),itr1sa73,2,1
+20180117_C3_KB5095_S11_R1_001.fastq.gz,S11,itr1sa73_rep3,itr-1(sa73),itr1sa73,3,1
+20180117_C4_KB5095_S12_R1_001.fastq.gz,S12,itr1sa73_rep4,itr-1(sa73),itr1sa73,4,1
+20180117_D1_KB5095_S13_R1_001.fastq.gz,S13,atf6_itr1sa73_rep1,atf-6; itr-1(sa73),atf6_itr1sa73,1,1
+20180117_D2_KB5095_S14_R1_001.fastq.gz,S14,atf6_itr1sa73_rep2,atf-6; itr-1(sa73),atf6_itr1sa73,2,1
+20180117_D3_KB5095_S15_R1_001.fastq.gz,S15,atf6_itr1sa73_rep3,atf-6; itr-1(sa73),atf6_itr1sa73,3,1
+20180117_D4_KB5095_S16_R1_001.fastq.gz,S16,atf6_itr1sa73_rep4,atf-6; itr-1(sa73),atf6_itr1sa73,4,1
+20180117_E1_KB5095_S17_R1_001.fastq.gz,S17,itr1sy290_rep1,itr-1(sy290),itr1sy290,1,1
+20180117_E2_KB5095_S18_R1_001.fastq.gz,S18,itr1sy290_rep2,itr-1(sy290),itr1sy290,2,1
+20180117_E3_KB5095_S19_R1_001.fastq.gz,S19,itr1sy290_rep3,itr-1(sy290),itr1sy290,3,1
+20180117_E4_KB5095_S20_R1_001.fastq.gz,S20,itr1sy290_rep4,itr-1(sy290),itr1sy290,4,1
